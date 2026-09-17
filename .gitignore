@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.p12
+*.pfx
+*.log
+caf/
+ejemplos/salida/

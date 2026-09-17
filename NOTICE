@@ -1,0 +1,13 @@
+typeDTE
+Copyright 2026 Luis Navarrete
+
+Este producto incluye software desarrollado por Luis Navarrete, publicado bajo
+la Licencia Apache, version 2.0.
+
+Los esquemas XSD en resources/schemas son del Servicio de Impuestos Internos
+de Chile (SII). Se incluyen tal como el SII los publica, para validar los
+documentos contra la especificacion oficial. No son parte de la obra licenciada
+y no se modificaron.
+
+typeDTE se escribio a partir de la especificacion publica del SII. No contiene
+codigo de LibreDTE ni de otros proyectos de facturacion electronica.
