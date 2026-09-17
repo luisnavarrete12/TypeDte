@@ -11,6 +11,14 @@
     "typescript"
   ],
   "author": "Luis Navarrete",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luisnavarrete12/TypeDte.git"
+  },
+  "homepage": "https://github.com/luisnavarrete12/TypeDte#readme",
+  "bugs": {
+    "url": "https://github.com/luisnavarrete12/TypeDte/issues"
+  },
   "license": "Apache-2.0",
   "type": "module",
   "engines": {

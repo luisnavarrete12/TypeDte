@@ -336,6 +336,7 @@ El esquema del SII separa los documentos en cuatro familias: facturas y notas (`
 
 - **No está certificado ante el SII.** El SII no certifica software: autoriza a cada contribuyente, que recorre su propio proceso de certificación. typeDTE genera documentos que pasan los esquemas oficiales, pero ningún contribuyente lo ha certificado todavía.
 - **No guarda nada.** Ni documentos, ni folios, ni certificados. La custodia del certificado es responsabilidad de quien lo usa.
+- **No envía boletas al SII.** Las boletas (39 y 41) se emiten y se ensobran con `construirEnvioBoleta`, pero el SII las recibe por una API REST distinta a la de las facturas, y esa API todavía no está implementada. `enviarDocumentos` sirve para el resto de los tipos.
 - **No asigna folios de forma atómica.** Si dos procesos toman el mismo folio, el SII rechaza el segundo. Eso requiere una transacción en tu base de datos.
 - **El PDF es solo tamaño carta.** No incluye el formato de 80 mm para impresoras térmicas.
 - **No incluye** el reporte de consumo de folios ni el libro de boletas.
