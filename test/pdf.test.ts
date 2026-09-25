@@ -4,7 +4,9 @@ import { describe, it } from 'node:test';
 import { PDFDocument } from 'pdf-lib';
 
 import { parseCaf } from '../src/adapters/caf/parse.ts';
-import { formatearMonto, formatearRut, generarPdfCarta, imprimible } from '../src/adapters/pdf/carta.ts';
+import { generarPdfCarta } from '../src/adapters/pdf/carta.ts';
+import { generarPdfTicket } from '../src/adapters/pdf/ticket.ts';
+import { formatearMonto, formatearRut, imprimible } from '../src/adapters/pdf/texto.ts';
 import { bytesDelTimbre, dibujarTimbre, leerTimbre } from '../src/adapters/pdf/timbre.ts';
 import { timbrar } from '../src/adapters/ted/timbrar.ts';
 import { datosTimbreBoleta } from '../src/core/dte/boleta.ts';
@@ -154,3 +156,64 @@ describe('PDF carta', () => {
         strictEqual(formatearMonto(135025, 'PESO CL'), '$ 135.025');
     });
 });
+
+describe('PDF ticket para impresora termica', () => {
+    const representacion = () => construirRepresentacion(FACTURA, calcularTotales(FACTURA), tedDe(FACTURA), OPCIONES);
+    const milimetros = (puntos: number): number => Number(((puntos / 72) * 25.4).toFixed(1));
+
+    it('sale del ancho del rollo y en una sola tira continua', async () => {
+        const pdf = await PDFDocument.load(await generarPdfTicket(representacion()));
+        const { width } = pdf.getPage(0).getSize();
+
+        strictEqual(pdf.getPageCount(), 1, 'el papel termico es continuo: no se pagina');
+        strictEqual(milimetros(width), 80);
+    });
+
+    it('acepta rollos de otro ancho', async () => {
+        const pdf = await PDFDocument.load(await generarPdfTicket(representacion(), { anchoPapelMm: 58 }));
+
+        strictEqual(milimetros(pdf.getPage(0).getSize().width), 58);
+    });
+
+    it('crece hacia abajo con cada producto, en vez de cortar', async () => {
+        const largo: FacturaAfecta = {
+            ...FACTURA,
+            items: Array.from({ length: 20 }, (_, i) => ({ nombre: `Producto ${i + 1}`, cantidad: 1, precioUnitario: 1000 })) as unknown as FacturaAfecta['items'],
+        };
+        const corto = await PDFDocument.load(await generarPdfTicket(representacion()));
+        const alto = await PDFDocument.load(
+            await generarPdfTicket(construirRepresentacion(largo, calcularTotales(largo), tedDe(largo), OPCIONES))
+        );
+
+        ok(alto.getPage(0).getSize().height > corto.getPage(0).getSize().height);
+        strictEqual(alto.getPageCount(), 1);
+    });
+
+    it('el pie de pagina alarga el ticket', async () => {
+        const sinPie = await PDFDocument.load(await generarPdfTicket(representacion()));
+        const conPie = await PDFDocument.load(
+            await generarPdfTicket(representacion(), { pieDePagina: 'Cambios dentro de 30 dias con este comprobante' })
+        );
+
+        ok(conPie.getPage(0).getSize().height > sinPie.getPage(0).getSize().height);
+    });
+
+    it('mas columnas achican el timbre y se sigue leyendo igual', async () => {
+        const ted = tedDe(FACTURA);
+        const esperado = Buffer.from(bytesDelTimbre(ted));
+
+        const normal = await dibujarTimbre(ted);
+        const ancho = await dibujarTimbre(ted, 24);
+
+        // El codigo mas ancho ocupa menos alto para el mismo contenido.
+        ok(proporcion(ancho) > proporcion(normal));
+        deepStrictEqual(Buffer.from((await leerTimbre(ancho))!), esperado);
+    });
+});
+
+/** Ancho dividido por alto, leidos de la cabecera del PNG. */
+function proporcion(png: Uint8Array): number {
+    const cabecera = new DataView(png.buffer, png.byteOffset);
+
+    return cabecera.getUint32(16) / cabecera.getUint32(20);
+}

@@ -17,11 +17,16 @@ const NIVEL_CORRECCION = 5;
  * fiscalizador escanea el papel y tiene que obtener exactamente el XML que se
  * firmo. Por eso se le pasan bytes al codificador, y por eso se eligio uno que
  * se verifico leyendo de vuelta, acentos incluidos.
+ *
+ * `columnas` cambia la forma del simbolo: mas columnas lo dejan mas ancho y
+ * mas bajo, util en un ticket angosto, pero tambien hace mas finos sus
+ * modulos. Una impresora termica de 203 dpi puede no resolverlos, asi que
+ * conviene probar el resultado en la impresora real antes de bajarlo mucho.
  */
-export async function dibujarTimbre(ted: XmlElement): Promise<Uint8Array> {
+export async function dibujarTimbre(ted: XmlElement, columnas?: number): Promise<Uint8Array> {
     const resultado = await writeBarcode(bytesDelTimbre(ted), {
         format: 'PDF417',
-        options: `eclevel=${NIVEL_CORRECCION}`,
+        options: `eclevel=${NIVEL_CORRECCION}` + (columnas === undefined ? '' : `,columns=${columnas}`),
         scale: 2,
     });
 
