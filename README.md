@@ -16,9 +16,11 @@ Con tipos que convierten los rechazos del SII en errores de compilación.
 
 <br>
 
-<img src="docs/factura-ejemplo.png" alt="Factura electrónica generada por typeDTE" width="560">
+<img src="docs/factura-ejemplo.png" alt="Factura electrónica tamaño carta generada por typeDTE" width="400" valign="top">
+&nbsp;&nbsp;
+<img src="docs/ticket-ejemplo.png" alt="Boleta electrónica en formato ticket de 80 mm" width="150" valign="top">
 
-<sub>Factura generada por typeDTE con credenciales de prueba. El código de barras contiene el timbre firmado y se lee de vuelta byte a byte.</sub>
+<sub>Factura en tamaño carta y boleta en ticket de 80 mm, generadas por typeDTE con credenciales de prueba.<br>El código de barras contiene el timbre firmado y se lee de vuelta byte a byte.</sub>
 
 </div>
 
@@ -27,7 +29,7 @@ Con tipos que convierten los rechazos del SII en errores de compilación.
 ## Uso rápido
 
 ```ts
-import { emitir, TIPO, type FacturaAfecta } from 'typedte';
+import { emitir, TIPO, type FacturaAfecta } from 'typedte-sii';
 
 const factura: FacturaAfecta = {
     tipo: TIPO.FACTURA_AFECTA,
@@ -124,17 +126,17 @@ Además:
 - **Validación** contra los esquemas XSD oficiales del SII, incluidos en el repositorio.
 - **Comunicación con el SII**: autenticación con semilla y token, envío de sobres y consulta de estado, en certificación (Maullín) y producción (Palena).
 - **Libros** de ventas, compras y guías de despacho.
-- **PDF** tamaño carta, con el timbre en código PDF417.
+- **PDF** en dos formatos: tamaño carta y ticket para impresora térmica de rollo, con el timbre en código PDF417.
 
 ---
 
 ## Instalación
 
 ```bash
-npm install github:<usuario>/typedte
+npm install typedte-sii
 ```
 
-Requiere Node.js 22 o superior. La librería se compila al instalarse.
+Requiere Node.js 22 o superior.
 
 ---
 
@@ -146,7 +148,7 @@ Para emitir se necesitan dos archivos: los folios que entrega el SII y el certif
 
 ```ts
 import { readFileSync } from 'node:fs';
-import { cargarCertificado, parseCaf } from 'typedte';
+import { cargarCertificado, parseCaf } from 'typedte-sii';
 
 // El archivo de folios que se descarga desde sii.cl, uno por tipo de documento.
 const caf = parseCaf(readFileSync('FoliosSII33.xml', 'latin1'));
@@ -169,7 +171,7 @@ import {
     RUT_SII,
     serialize,
     XML_DECLARATION,
-} from 'typedte';
+} from 'typedte-sii';
 
 const token = await obtenerToken(certificado, { ambiente: 'certificacion' });
 
@@ -197,7 +199,7 @@ const acuse = await enviarDocumentos(
 > **El `trackId` no significa que el documento fue aceptado.** El SII acusa recibo de inmediato y valida después. La única forma de saber el resultado es preguntarlo.
 
 ```ts
-import { consultarEstado } from 'typedte';
+import { consultarEstado } from 'typedte-sii';
 
 const { estado, glosa } = await consultarEstado({
     ambiente: 'certificacion',
@@ -216,7 +218,7 @@ Un código de respuesta que la librería no conoce vuelve como `'desconocido'` j
 Las líneas del libro de ventas se derivan de los documentos emitidos, así el libro no puede descuadrar con lo que resume:
 
 ```ts
-import { construirLibroCompraVenta, firmarDocumento, ID_ENVIO_LIBRO, lineaVentaDesde } from 'typedte';
+import { construirLibroCompraVenta, firmarDocumento, ID_ENVIO_LIBRO, lineaVentaDesde } from 'typedte-sii';
 
 const libro = construirLibroCompraVenta({
     operacion: 'venta',
@@ -239,7 +241,7 @@ El libro de compras recibe las facturas de los proveedores y resume el IVA de us
 ### PDF
 
 ```ts
-import { construirRepresentacion, generarPdfCarta } from 'typedte/pdf';
+import { construirRepresentacion, generarPdfCarta } from 'typedte-sii/pdf';
 
 const pdf = await generarPdfCarta(
     construirRepresentacion(factura, emitido.totales, emitido.ted, {
@@ -249,7 +251,23 @@ const pdf = await generarPdfCarta(
 );
 ```
 
-El PDF vive en su propio punto de entrada, `typedte/pdf`, para que quien solo emite no cargue las dependencias de dibujo.
+Y el formato de rollo, que es con el que se imprime una boleta en el mesón (sirve para cualquier documento):
+
+```ts
+import { construirRepresentacion, generarPdfTicket } from 'typedte-sii/pdf';
+
+const ticket = await generarPdfTicket(
+    construirRepresentacion(factura, emitido.totales, emitido.ted, {
+        unidadSii: 'SANTIAGO ORIENTE',
+        resolucion: { numero: 80, fecha: '2014-08-22' },
+    }),
+    { anchoPapelMm: 80, pieDePagina: '¡Gracias por su compra!' }
+);
+```
+
+La página se genera del alto exacto que ocupa la venta, porque el papel de rollo es continuo: veinte productos alargan el ticket, no lo parten en dos.
+
+El PDF vive en su propio punto de entrada, `typedte-sii/pdf`, para que quien solo emite no cargue las dependencias de dibujo.
 
 ---
 
@@ -322,6 +340,15 @@ El código PDF417 se genera con [`zxing-wasm`](https://github.com/Sec-ant/zxing-
 </details>
 
 <details>
+<summary><b>El timbre del ticket: más bajo es también más fino</b></summary>
+
+<br>
+
+El código PDF417 se puede pedir más ancho y bajo, para que ocupe menos rollo. Pero a igual ancho de papel, más columnas significa módulos más angostos. Medido con un timbre real de 973 bytes sobre 72 mm de área imprimible: la forma automática deja unos 1,7 puntos por módulo en una impresora de 203 dpi, y forzarlo a la mitad de alto lo baja a 1,4. Por eso el valor por omisión es el automático, y la opción `columnasTimbre` queda a la vista y documentada para quien imprima en 300 dpi.
+
+</details>
+
+<details>
 <summary><b>Cuatro constructores, no uno con ramas</b></summary>
 
 <br>
@@ -338,7 +365,6 @@ El esquema del SII separa los documentos en cuatro familias: facturas y notas (`
 - **No guarda nada.** Ni documentos, ni folios, ni certificados. La custodia del certificado es responsabilidad de quien lo usa.
 - **No envía boletas al SII.** Las boletas (39 y 41) se emiten y se ensobran con `construirEnvioBoleta`, pero el SII las recibe por una API REST distinta a la de las facturas, y esa API todavía no está implementada. `enviarDocumentos` sirve para el resto de los tipos.
 - **No asigna folios de forma atómica.** Si dos procesos toman el mismo folio, el SII rechaza el segundo. Eso requiere una transacción en tu base de datos.
-- **El PDF es solo tamaño carta.** No incluye el formato de 80 mm para impresoras térmicas.
 - **No incluye** el reporte de consumo de folios ni el libro de boletas.
 
 ---

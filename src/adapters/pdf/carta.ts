@@ -1,8 +1,15 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
 import type { LineaImpresa, Representacion } from '../../core/pdf/representacion.ts';
-import { formatRut } from '../../core/rut/rut.ts';
-import { sanitizeSiiText } from '../../core/xml/text.ts';
+import {
+    envolver,
+    formatearFecha,
+    formatearMonto,
+    formatearNumero,
+    formatearRut,
+    imprimible,
+    recortar,
+} from './texto.ts';
 import { dibujarTimbre } from './timbre.ts';
 
 const CARTA = { ancho: 612, alto: 792 } as const;
@@ -272,9 +279,6 @@ function alDerecha(pagina: PDFPage, texto: string, borde: number, estilo: { y: n
  * Deja el texto igual a lo que quedo en el XML firmado, y sin caracteres de
  * control que la fuente estandar del PDF no sabe dibujar.
  */
-export function imprimible(texto: string): string {
-    return sanitizeSiiText(texto).replace(/[ --]/g, ' ');
-}
 
 function unirSinRepetir(...partes: (string | undefined)[]): string | undefined {
     const distintas = [...new Set(partes.filter((p): p is string => Boolean(p)))];
@@ -282,57 +286,3 @@ function unirSinRepetir(...partes: (string | undefined)[]): string | undefined {
     return distintas.length === 0 ? undefined : distintas.join(', ');
 }
 
-function envolver(texto: string, fuente: PDFFont, tamano: number, anchoMaximo: number): string[] {
-    const renglones: string[] = [];
-    let actual = '';
-
-    for (const palabra of texto.split(' ')) {
-        const candidato = actual === '' ? palabra : `${actual} ${palabra}`;
-
-        if (fuente.widthOfTextAtSize(candidato, tamano) <= anchoMaximo || actual === '') {
-            actual = candidato;
-        } else {
-            renglones.push(actual);
-            actual = palabra;
-        }
-    }
-
-    return actual === '' ? renglones : [...renglones, actual];
-}
-
-function recortar(texto: string, fuente: PDFFont, tamano: number, anchoMaximo: number): string {
-    if (fuente.widthOfTextAtSize(texto, tamano) <= anchoMaximo) {
-        return texto;
-    }
-
-    let recortado = texto;
-    while (recortado.length > 0 && fuente.widthOfTextAtSize(`${recortado}…`, tamano) > anchoMaximo) {
-        recortado = recortado.slice(0, -1);
-    }
-
-    return `${recortado}…`;
-}
-
-export function formatearRut(rut: string): string {
-    const [cuerpo, digito] = formatRut(rut).split('-');
-
-    return `${Number(cuerpo).toLocaleString('es-CL')}-${digito}`;
-}
-
-export function formatearMonto(valor: number, moneda: Representacion['moneda'], decimales = 4): string {
-    if (moneda === 'PESO CL') {
-        return `$ ${Math.round(valor).toLocaleString('es-CL')}`;
-    }
-
-    return `${formatearNumero(valor, decimales)} ${moneda}`;
-}
-
-function formatearNumero(valor: number, decimales: number): string {
-    return valor.toLocaleString('es-CL', { maximumFractionDigits: decimales });
-}
-
-function formatearFecha(fecha: string): string {
-    const [anio, mes, dia] = fecha.split('-');
-
-    return `${dia}/${mes}/${anio}`;
-}

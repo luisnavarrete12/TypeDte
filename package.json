@@ -1,5 +1,5 @@
 {
-  "name": "typedte",
+  "name": "typedte-sii",
   "version": "0.1.0",
   "description": "Documentos tributarios electronicos (DTE) del SII de Chile en TypeScript: los 12 tipos, timbre, firma, envio, libros y PDF.",
   "keywords": [
