@@ -124,7 +124,7 @@ Además:
 - **Timbre electrónico (TED)** firmado con la llave del CAF.
 - **Firma XMLDSig** con el certificado del contribuyente (.p12 / .pfx).
 - **Validación** contra los esquemas XSD oficiales del SII, incluidos en el repositorio.
-- **Comunicación con el SII**: autenticación con semilla y token, envío de sobres y consulta de estado, en certificación (Maullín) y producción (Palena).
+- **Comunicación con el SII** por sus dos canales: el de facturas (Maullín y Palena) y el de boletas, que es una API aparte. Autenticación, envío y consulta de estado.
 - **Libros** de ventas, compras y guías de despacho.
 - **PDF** en dos formatos: tamaño carta y ticket para impresora térmica de rollo, con el timbre en código PDF417.
 
@@ -212,6 +212,45 @@ const { estado, glosa } = await consultarEstado({
 ```
 
 Un código de respuesta que la librería no conoce vuelve como `'desconocido'` junto al código original, en lugar de adivinar su significado.
+
+### Enviar boletas
+
+Las boletas no viajan por donde viajan las facturas. El SII las recibe por otra API, en otros dominios y con su propio token:
+
+```ts
+import {
+    construirEnvioBoleta,
+    enviarBoletas,
+    firmarDocumento,
+    ID_SET_BOLETA,
+    obtenerTokenBoletas,
+    RUT_SII,
+    serialize,
+    XML_DECLARATION,
+} from 'typedte-sii';
+
+// El token de facturas no sirve en este canal.
+const tokenBoletas = await obtenerTokenBoletas(certificado, { ambiente: 'certificacion' });
+
+const sobreBoletas = construirEnvioBoleta(
+    {
+        rutEmisor: '44444444-4',
+        rutEnvia: '11111111-1',
+        rutReceptor: RUT_SII,
+        fechaResolucion: '2014-08-22',
+        numeroResolucion: 80,
+        timestampFirma: '2026-09-25T13:05:00',
+    },
+    [emitido.firmado] // aqui van boletas emitidas con el CAF del tipo 39
+);
+
+const acuseBoletas = await enviarBoletas(
+    XML_DECLARATION + serialize(firmarDocumento(sobreBoletas, ID_SET_BOLETA, certificado)),
+    { ambiente: 'certificacion', token: tokenBoletas, rutEnvia: '11111111-1', rutEmisor: '44444444-4' }
+);
+```
+
+Este canal responde en JSON en vez de XML, y el número de seguimiento se lee sin exigir una forma exacta: la API lo escribe de varias maneras según la versión.
 
 ### Libros
 
@@ -340,6 +379,15 @@ El código PDF417 se genera con [`zxing-wasm`](https://github.com/Sec-ant/zxing-
 </details>
 
 <details>
+<summary><b>Las boletas tienen su propio canal, no una variante del de facturas</b></summary>
+
+<br>
+
+El SII recibe las boletas por una API REST distinta: otros dominios (`apicert` y `pangal` en certificación, `api` y `rahue` en producción), otro token, y respuestas en JSON en vez de XML. Lo único que comparte con el canal de facturas es la forma del cuerpo de la subida. Por eso vive en su propio módulo y no como una rama del envío de facturas: meterlo ahí habría escondido que son dos protocolos.
+
+</details>
+
+<details>
 <summary><b>El timbre del ticket: más bajo es también más fino</b></summary>
 
 <br>
@@ -363,7 +411,6 @@ El esquema del SII separa los documentos en cuatro familias: facturas y notas (`
 
 - **No está certificado ante el SII.** El SII no certifica software: autoriza a cada contribuyente, que recorre su propio proceso de certificación. typeDTE genera documentos que pasan los esquemas oficiales, pero ningún contribuyente lo ha certificado todavía.
 - **No guarda nada.** Ni documentos, ni folios, ni certificados. La custodia del certificado es responsabilidad de quien lo usa.
-- **No envía boletas al SII.** Las boletas (39 y 41) se emiten y se ensobran con `construirEnvioBoleta`, pero el SII las recibe por una API REST distinta a la de las facturas, y esa API todavía no está implementada. `enviarDocumentos` sirve para el resto de los tipos.
 - **No asigna folios de forma atómica.** Si dos procesos toman el mismo folio, el SII rechaza el segundo. Eso requiere una transacción en tu base de datos.
 - **No incluye** el reporte de consumo de folios ni el libro de boletas.
 

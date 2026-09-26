@@ -27,6 +27,32 @@ export function endpointsDe(ambiente: Ambiente): Endpoints {
     };
 }
 
+/**
+ * El SII recibe las boletas por un canal distinto al de las facturas: otra
+ * API, otros dominios y respuestas en JSON en vez de XML. Por eso los
+ * endpoints van aparte y no como una variante de los otros.
+ */
+export interface EndpointsBoleta {
+    readonly semilla: string;
+    readonly token: string;
+    readonly subida: string;
+}
+
+const DOMINIOS_BOLETA: Readonly<Record<Ambiente, { autenticacion: string; subida: string }>> = {
+    certificacion: { autenticacion: 'https://apicert.sii.cl', subida: 'https://pangal.sii.cl' },
+    produccion: { autenticacion: 'https://api.sii.cl', subida: 'https://rahue.sii.cl' },
+};
+
+export function endpointsBoletaDe(ambiente: Ambiente): EndpointsBoleta {
+    const { autenticacion, subida } = DOMINIOS_BOLETA[ambiente];
+
+    return {
+        semilla: `${autenticacion}/recursos/v1/boleta.electronica.semilla`,
+        token: `${autenticacion}/recursos/v1/boleta.electronica.token`,
+        subida: `${subida}/recursos/v1/boleta.electronica.envio`,
+    };
+}
+
 export function esProduccion(ambiente: Ambiente): boolean {
     return ambiente === 'produccion';
 }
