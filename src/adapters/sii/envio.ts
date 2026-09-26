@@ -1,7 +1,7 @@
 import { XmlDocument } from 'libxml2-wasm';
 
 import { endpointsDe, type Ambiente } from '../../core/sii/ambiente.ts';
-import { toLatin1 } from '../../core/xml/serialize.ts';
+import { cuerpoDeSubida, cuerpoRut, digitoRut } from './subida.ts';
 import { llamarSoap, SiiError, transporteFetch, type Transporte } from './soap.ts';
 import type { Token } from './autenticacion.ts';
 
@@ -31,17 +31,7 @@ export async function enviarDocumentos(
     opciones: OpcionesEnvio
 ): Promise<Acuse> {
     const transporte = opciones.transporte ?? transporteFetch;
-    const cuerpo = new FormData();
-
-    cuerpo.set('rutSender', cuerpoRut(opciones.rutEnvia));
-    cuerpo.set('dvSender', digitoRut(opciones.rutEnvia));
-    cuerpo.set('rutCompany', cuerpoRut(opciones.rutEmisor));
-    cuerpo.set('dvCompany', digitoRut(opciones.rutEmisor));
-    cuerpo.set(
-        'archivo',
-        new Blob([bytesDe(envioXml)], { type: 'text/xml' }),
-        'envio.xml'
-    );
+    const cuerpo = cuerpoDeSubida(opciones.rutEnvia, opciones.rutEmisor, envioXml, 'envio.xml');
 
     const respuesta = await transporte(endpointsDe(opciones.ambiente).subida, {
         method: 'POST',
@@ -149,20 +139,3 @@ function leerTrackId(cuerpo: string): string {
     }
 }
 
-/** El SII espera el archivo en ISO-8859-1, igual que su contenido declara. */
-function bytesDe(xml: string): ArrayBuffer {
-    const origen = toLatin1(xml);
-    const destino = new ArrayBuffer(origen.byteLength);
-
-    new Uint8Array(destino).set(origen);
-
-    return destino;
-}
-
-function cuerpoRut(rut: string): string {
-    return rut.split('-')[0]!;
-}
-
-function digitoRut(rut: string): string {
-    return rut.split('-')[1]!;
-}
