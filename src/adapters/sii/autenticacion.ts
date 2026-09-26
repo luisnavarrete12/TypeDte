@@ -43,7 +43,7 @@ export async function obtenerToken(
         ['pszXml', XML_DECLARATION + serialize(peticion)],
     ]);
 
-    return { valor: leerCampo(respuesta, 'TOKEN'), obtenidoEn: new Date() };
+    return { valor: leerCampoSii(respuesta, 'TOKEN'), obtenidoEn: new Date() };
 }
 
 export function tokenVigente(token: Token, momento: Date = new Date()): boolean {
@@ -55,14 +55,14 @@ export function tokenVigente(token: Token, momento: Date = new Date()): boolean 
 async function pedirSemilla(transporte: Transporte, url: string): Promise<string> {
     const respuesta = await llamarSoap(transporte, url, 'getSeed', []);
 
-    return leerCampo(respuesta, 'SEMILLA');
+    return leerCampoSii(respuesta, 'SEMILLA');
 }
 
 /**
  * Las respuestas del SII traen un `ESTADO` y, si algo fallo, un `GLOSA` que
  * explica. Conviene propagar esa glosa: es lo unico que dice por que.
  */
-function leerCampo(respuesta: string, campo: string): string {
+export function leerCampoSii(respuesta: string, campo: string): string {
     const doc = XmlDocument.fromString(respuesta);
 
     try {

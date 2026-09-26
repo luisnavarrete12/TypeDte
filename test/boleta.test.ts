@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { parseCaf } from '../src/adapters/caf/parse.ts';
 import { cargarCertificado } from '../src/adapters/crypto/certificado.ts';
 import { firmarDocumento } from '../src/adapters/firma/firmar.ts';
+import { enviarBoletas } from '../src/adapters/sii/boletas.ts';
 import { validarContraEsquema } from '../src/adapters/schema/validar.ts';
 import { timbrar, verificarTimbre } from '../src/adapters/ted/timbrar.ts';
 import {
@@ -20,6 +21,7 @@ import { calcularTotalesBoleta } from '../src/core/dte/totales.ts';
 import { serialize, XML_DECLARATION } from '../src/core/xml/serialize.ts';
 import { generarCafFalso } from './support/caf-falso.ts';
 import { generarCertificadoFalso } from './support/certificado-falso.ts';
+import { transporteGrabado } from './support/sii-grabado.ts';
 import { EMISION, EMISOR, FIRMADO, TIMBRADO } from './support/emitir.ts';
 
 /** Una boleta solo se puede validar dentro de su sobre: el esquema no tiene otra raiz. */
@@ -145,5 +147,27 @@ describe('boleta exenta (41)', () => {
         ok(!emitida.xml.includes('<IVA>'));
         ok(emitida.xml.includes('<MntExe>6000</MntExe>'));
         strictEqual(emitida.totales.total, 6000);
+    });
+});
+
+describe('boleta de punta a punta', () => {
+    it('la boleta emitida sale por el canal de boletas, no por el de facturas', async () => {
+        const emitida = emitirBoleta({
+            ...BASE,
+            tipo: TIPO_BOLETA.AFECTA,
+            items: [{ nombre: 'Marraqueta', monto: 1190 }],
+        });
+        const transporte = transporteGrabado({ 'boleta.electronica.envio': '{"status":"REC","trackid":55512345}' });
+
+        const acuse = await enviarBoletas(emitida.xml, {
+            ambiente: 'certificacion',
+            token: { valor: 'T', obtenidoEn: new Date() },
+            rutEnvia: '11111111-1',
+            rutEmisor: EMISOR.rut,
+            transporte,
+        });
+
+        strictEqual(acuse.trackId, '55512345');
+        ok(transporte.llamadas[0]!.url.includes('boleta.electronica.envio'));
     });
 });

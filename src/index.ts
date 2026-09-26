@@ -49,7 +49,7 @@ export { FirmaError, firmarDocumento, verificarFirma } from './adapters/firma/fi
 export { cumpleEsquema, EsquemaInvalidoError, validarContraEsquema, type ErrorDeEsquema } from './adapters/schema/validar.ts';
 
 // Comunicacion con el SII
-export { endpointsDe, esProduccion, type Ambiente, type Endpoints } from './core/sii/ambiente.ts';
+export { endpointsBoletaDe, endpointsDe, esProduccion, type Ambiente, type Endpoints, type EndpointsBoleta } from './core/sii/ambiente.ts';
 export { obtenerToken, tokenVigente, type OpcionesAutenticacion, type Token } from './adapters/sii/autenticacion.ts';
 export {
     consultarEstado,
@@ -61,6 +61,12 @@ export {
     type OpcionesEnvio,
     type ResultadoEstado,
 } from './adapters/sii/envio.ts';
+export {
+    enviarBoletas,
+    obtenerTokenBoletas,
+    type OpcionesBoletas,
+    type OpcionesEnvioBoletas,
+} from './adapters/sii/boletas.ts';
 export { SiiError, transporteFetch, type RespuestaHttp, type Transporte } from './adapters/sii/soap.ts';
 
 // RUT y XML
